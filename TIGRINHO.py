@@ -40,7 +40,9 @@ def ordem(Array_Apostas):
         multi += checarapostas(Array_Apostas[0])
     if Array_Apostas[2] == Array_Apostas[4] == Array_Apostas[6]:
         multi += checarapostas(Array_Apostas[2])
-    return multi
+    if all(elem == Array_Apostas[0] for elem in Array_Apostas):        
+        multi += 10
+        return multi
 
 def gerar_slot():
     Slot = []
