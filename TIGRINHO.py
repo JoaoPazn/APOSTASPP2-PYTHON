@@ -1,12 +1,14 @@
 import random
 import time
 
+multi = 0
+
 # Valores
-Banana = ["B", 0.5]
-Maca = ["M", 0.8]
-Laranja = ["L", 1]
-Uva = ["U", 1.2]
-Jabuticaba = ["J", 3]
+Banana = ["B", 0.6]
+Maca = ["M", 1]
+Laranja = ["L", 1.3]
+Uva = ["U", 1.8]
+Jabuticaba = ["J", 2.5]
 Goiaba = ["G", 5]
 Manga = ["MA", 20]
 
@@ -30,19 +32,23 @@ def checarapostas(valor):
 
 def ordem(Array_Apostas):
     multi = 0
+    # Linhas
     for i in range(0, 9, 3):
         if Array_Apostas[i] == Array_Apostas[i+1] == Array_Apostas[i+2]:
             multi += checarapostas(Array_Apostas[i])
+    # Colunas
     for i in range(3):
         if Array_Apostas[i] == Array_Apostas[i+3] == Array_Apostas[i+6]:
             multi += checarapostas(Array_Apostas[i])
+    # Diagonais
     if Array_Apostas[0] == Array_Apostas[4] == Array_Apostas[8]:
         multi += checarapostas(Array_Apostas[0])
     if Array_Apostas[2] == Array_Apostas[4] == Array_Apostas[6]:
         multi += checarapostas(Array_Apostas[2])
+    # Bônus para todos iguais
     if all(elem == Array_Apostas[0] for elem in Array_Apostas):        
         multi += 10
-        return multi
+    return multi 
 
 def gerar_slot():
     Slot = []
