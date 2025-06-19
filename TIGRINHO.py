@@ -4,13 +4,13 @@ import time
 multi = 0
 
 # Valores
-Banana = ["B", 0.6]
-Maca = ["M", 1]
-Laranja = ["L", 1.3]
-Uva = ["U", 1.8]
-Jabuticaba = ["J", 2.5]
-Goiaba = ["G", 5]
-Manga = ["MA", 20]
+Banana = ["🍌", 0.6]
+Maca = ["🍎", 1]
+Laranja = ["🍊", 1.3]
+Uva = ["🍇", 1.8]
+Jabuticaba = ["🍈", 2.5]
+Goiaba = ["🥥", 5]
+Manga = ["⭐", 20]
 
 def checarapostas(valor):
     if valor == Banana[0]:
@@ -72,11 +72,11 @@ def gerar_slot():
 
 def mostrar_slot(Slot):
     print(f'''
-{Slot[0]} | {Slot[1]} | {Slot[2]}
---+---+--
-{Slot[3]} | {Slot[4]} | {Slot[5]}
---+---+--
-{Slot[6]} | {Slot[7]} | {Slot[8]}
+{Slot[0]}  |  {Slot[1]}  |  {Slot[2]}
+--+---+---+---+--
+{Slot[3]}  |  {Slot[4]}  |  {Slot[5]}
+--+---+---+---+--
+{Slot[6]}  |  {Slot[7]}  |  {Slot[8]}
 ''')
 
 def apostas(dinh):
