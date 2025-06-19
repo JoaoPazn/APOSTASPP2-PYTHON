@@ -72,11 +72,13 @@ def gerar_slot():
 
 def mostrar_slot(Slot):
     print(f'''
-{Slot[0]}  |  {Slot[1]}  |  {Slot[2]}
---+---+---+---+--
-{Slot[3]}  |  {Slot[4]}  |  {Slot[5]}
---+---+---+---+--
-{Slot[6]}  |  {Slot[7]}  |  {Slot[8]}
+ -------------------
+| {Slot[0]}  |  {Slot[1]}  |  {Slot[2]}  |
+| --+---+---+---+-- |
+| {Slot[3]}  |  {Slot[4]}  |  {Slot[5]}  |
+| --+---+---+---+-- |
+| {Slot[6]}  |  {Slot[7]}  |  {Slot[8]}  |
+ -------------------
 ''')
 
 def apostas(dinh):
