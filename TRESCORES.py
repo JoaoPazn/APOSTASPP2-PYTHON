@@ -21,7 +21,7 @@ Carteira: {dinh}
 ''')
         sel = input(">")
         if sel == "1":
-            dinh = apostas(dinh)
+            dinh = apostasTresCores(dinh)
         elif sel == "2":
             dinh = adicionar_dinheiro(dinh)
         elif sel == "3":
@@ -70,7 +70,7 @@ premio : {ganho}''')
 
 
 
-def apostas(dinh):
+def apostasTresCores(dinh):
     try:
         apost = float(input("Digite quanto irá apostar: "))
     except ValueError:
@@ -87,10 +87,7 @@ def apostas(dinh):
             break
         except ValueError:
             print("Valor inválido! Digite um número decimal (ex.: 1.5 ou 1,5).")
-    
-    if (multi*apost) > dinh:
-        print("Multiplicador muito alto em relação a aposta.")
-        return dinh
+
 
     while True:
         suaCor = input("Digite sua cor 1 - vermelho | 2 - preto | 3 - branco: ")
