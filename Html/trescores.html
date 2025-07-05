@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jogo de Apostas - Cores</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes spin {
+      0% { transform: rotateX(0deg) scale(1); }
+      50% { transform: rotateX(180deg) scale(1.2); }
+      100% { transform: rotateX(360deg) scale(1); }
+    }
+    .slot-animation {
+      animation: spin 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .modal {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+  <!-- Modal de Login/Cadastro (Atualizado) -->
+<div id="authModal" class="modal fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50">
+  <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+    <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">Acesso ao Jogo de Cores</h2>
+
+    <!-- Formulário de Login -->
+    <div id="loginForm">
+      <div class="mb-4">
+        <label class="block text-white mb-2">Nome de Usuário:</label>
+        <input type="text" id="loginUsername" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600">
+      </div>
+      <div class="mb-6">
+        <label class="block text-white mb-2">Senha:</label>
+        <input type="password" id="loginPassword" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600">
+      </div>
+      <button id="loginBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg mb-3">
+        Entrar
+      </button>
+      <button id="showRegisterBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg">
+        Criar Nova Conta
+      </button>
+    </div>
+
+    <!-- Formulário de Registro -->
+    <div id="registerForm" class="hidden">
+      <div class="mb-4">
+        <label class="block text-white mb-2">Novo Usuário:</label>
+        <input type="text" id="registerUsername" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600">
+      </div>
+      <div class="mb-4">
+        <label class="block text-white mb-2">Senha:</label>
+        <input type="password" id="registerPassword" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600">
+      </div>
+      <div class="mb-6">
+        <label class="block text-white mb-2">Confirmar Senha:</label>
+        <input type="password" id="registerConfirmPassword" class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600">
+      </div>
+      <button id="registerBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg mb-3">
+        Cadastrar
+      </button>
+      <button id="showLoginBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg">
+        Voltar para Login
+      </button>
+    </div>
+
+    <!-- Mensagem de Autenticação -->
+    <div id="authMessage" class="text-center mt-4 text-red-400"></div>
+  </div>
+</div>
+
+
+  <!-- Jogo -->
+  <div id="gameContainer" class="container mx-auto px-4 py-10 hidden">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-4xl font-bold text-yellow-400">🎰 JOGO DE CORES 🎰</h1>
+      <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Sair</button>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-6 shadow-lg space-y-6">
+      <div class="flex justify-between">
+        <span class="font-bold">Usuário:</span>
+        <span id="usernameDisplay" class="text-yellow-400 font-bold"></span>
+      </div>
+      <div class="flex justify-between">
+        <span class="font-bold">Saldo:</span>
+        <span id="balance" class="text-green-400 text-xl font-bold">R$ 0.00</span>
+      </div>
+
+      <div class="flex space-x-2">
+        <input type="number" id="betAmount" placeholder="Valor da Aposta" min="1" step="1"
+          class="flex-1 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none">
+        <button id="addMoneyBtn"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded font-bold">+ Fundos</button>
+      </div>
+
+      <input type="number" id="multiplier" placeholder="Multiplicador Esperado" step="0.1"
+        class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none">
+
+      <select id="colorSelect"
+        class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none">
+        <option value="Vermelho">Vermelho</option>
+        <option value="Preto">Preto</option>
+        <option value="Branco">Branco</option>
+      </select>
+
+      <button id="betBtn"
+        class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-gray-900 font-bold py-3 px-6 rounded-full text-lg transition-all transform hover:scale-105 shadow-lg hover:shadow-yellow-500/50">
+        APOSTAR
+      </button>
+
+      <div id="result" class="text-center text-lg font-semibold text-white min-h-8"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let isSpinning = false;
+
+    const authModal = document.getElementById('authModal');
+    const gameContainer = document.getElementById('gameContainer');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const authMessage = document.getElementById('authMessage');
+    const balanceDisplay = document.getElementById('balance');
+    const usernameDisplay = document.getElementById('usernameDisplay');
+    const betInput = document.getElementById('betAmount');
+    const multiplierInput = document.getElementById('multiplier');
+    const colorSelect = document.getElementById('colorSelect');
+    const betButton = document.getElementById('betBtn');
+    const addMoneyButton = document.getElementById('addMoneyBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const resultDisplay = document.getElementById('result');
+
+    function login(username, password) {
+      if (username === "jogador" && password === "senha") {
+        currentUser = { username: "jogador", balance: 1000 };
+        return true;
+      }
+      return false;
+    }
+
+    function register(username, password, confirmPassword) {
+      if (password !== confirmPassword) throw new Error("As senhas não coincidem");
+      currentUser = { username, balance: 0.00 };
+      return true;
+    }
+
+    function logout() {
+      currentUser = null;
+      authModal.style.display = 'flex';
+      gameContainer.classList.add('hidden');
+    }
+
+    function updateUI() {
+      if (currentUser) {
+        balanceDisplay.textContent = `R$ ${currentUser.balance.toFixed(2)}`;
+        usernameDisplay.textContent = currentUser.username;
+      }
+    }
+
+    function showAuthMessage(message) {
+      authMessage.textContent = message;
+      setTimeout(() => authMessage.textContent = '', 3000);
+    }
+
+    function showGameScreen() {
+      authModal.style.display = 'none';
+      gameContainer.classList.remove('hidden');
+      updateUI();
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!username || !password) return showAuthMessage("Preencha todos os campos");
+
+      if (login(username, password)) showGameScreen();
+      else showAuthMessage("Usuário ou senha incorretos");
+    });
+
+    document.getElementById('registerBtn').addEventListener('click', () => {
+      const username = document.getElementById('registerUsername').value.trim();
+      const password = document.getElementById('registerPassword').value;
+      const confirmPassword = document.getElementById('registerConfirmPassword').value;
+      if (!username || !password || !confirmPassword) return showAuthMessage("Preencha todos os campos");
+
+      try {
+        if (register(username, password, confirmPassword)) showGameScreen();
+      } catch (e) {
+        showAuthMessage(e.message);
+      }
+    });
+
+    document.getElementById('showRegisterBtn').addEventListener('click', () => {
+      loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+    });
+
+    document.getElementById('showLoginBtn').addEventListener('click', () => {
+      registerForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+    });
+
+    addMoneyButton.addEventListener('click', () => {
+      const valor = parseFloat(prompt("Digite quanto irá adicionar à carteira:"));
+      if (!isNaN(valor) && valor > 0) {
+        currentUser.balance += valor;
+        updateUI();
+      } else {
+        alert("Valor inválido!");
+      }
+    });
+
+    logoutBtn.addEventListener('click', logout);
+
+    betButton.addEventListener('click', () => {
+      if (isSpinning) return;
+
+      const betAmount = parseFloat(betInput.value);
+      const multiplier = parseFloat(multiplierInput.value);
+      const selectedColor = colorSelect.value;
+
+      if (isNaN(betAmount) || betAmount <= 0) return resultDisplay.textContent = "Valor da aposta inválido!";
+      if (betAmount > currentUser.balance) return resultDisplay.textContent = "Saldo insuficiente!";
+
+      isSpinning = true;
+      betButton.disabled = true;
+
+      const userNumber = Math.floor(Math.random() * 16);
+      const drawnNumber = Math.floor(Math.random() * 16);
+      let closestColor;
+
+      if (selectedColor === "Preto") {
+        closestColor = drawnNumber < userNumber ? "Vermelho" : drawnNumber > userNumber ? "Branco" : "Preto";
+      } else if (selectedColor === "Vermelho") {
+        closestColor = (userNumber - 5 <= drawnNumber && drawnNumber <= userNumber + 5) ? "Preto" : "Branco";
+      } else {
+        closestColor = (userNumber - 5 <= drawnNumber && drawnNumber <= userNumber + 5) ? "Preto" : "Vermelho";
+      }
+
+      setTimeout(() => {
+        let winnings = 0;
+        if (userNumber === drawnNumber) {
+          winnings = multiplier * betAmount;
+          currentUser.balance += winnings;
+          resultDisplay.innerHTML = `<span class="text-green-400">Parabéns! Você ganhou R$ ${winnings.toFixed(2)}</span><br><span class="text-yellow-300">Cor sorteada: ${closestColor}</span>`;
+        } else {
+          currentUser.balance -= betAmount;
+          resultDisplay.innerHTML = `<span class="text-red-400">Você perdeu!</span><br><span class="text-yellow-300">Cor sorteada: ${closestColor}</span>`;
+        }
+        updateUI();
+        isSpinning = false;
+        betButton.disabled = false;
+      }, 2000);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      authModal.style.display = 'flex';
+    });
+  </script>
+</body>
+</html>
