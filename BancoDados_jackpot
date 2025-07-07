@@ -2,39 +2,38 @@ create schema jackpot_if;
 use jackpot_if;
 
 create table usuario(
-login integer,
-primary key(login),
-nome varchar(99),
-data_nasc date not null,
-cpf varchar(11) unique key,
+id int auto_increment, -- ID se auto incrementa quando um usuário é criado.
+primary key(id),
+nome_usuario varchar(99) not null unique key,
+senha_hash varchar(255) not null,
 gasto float,
 ganho float,
 saldoatual float
 );
 
 create table tigrinho(
-gastotig float, -- Vai ser chave estrangeira
-ganhotig float -- Vai ser chave estrangeira
+id_aposta int auto_increment, -- ID para cada jogada ser única
+primary key(id_aposta), 
+login_usuario varchar(99),-- Para saber qual usuário jogou
+gastotig float, 
+ganhotig float,
+data_aposta timestamp default current_timestamp
 );
 
 create table roleta(
-gastorol float, -- Vai ser chave estrangeira
-ganhorol float -- Vai ser chave estrangeira
+id_aposta int auto_increment,
+primary key(id_aposta), 
+login_usuario varchar(99),
+gastorol float, 
+ganhorol float,
+data_aposta timestamp default current_timestamp
 );
 
 create table esporte(
-gastoesp float, -- Vai ser chave estrangeira
-ganhoesp float -- Vai ser chave estrangeira
-);
-
-create table gastogeral(
-gastotig float, -- Vai receber chave estrangeira
-gastorol float, -- Vai receber chave estrangeira
-gastoesp float -- Vai receber chave estrangeira
-);
-
-create table ganhogeral(
-ganhotig float, -- Vai receber chave estrangeira
-ganhorol float, -- Vai receber chave estrangeira
-ganhoesp float -- Vai receber chave estrangeira
+id_aposta int auto_increment,
+primary key(id_aposta), 
+login_usuario varchar(99),
+gastoesp float, 
+ganhoesp float,
+data_aposta timestamp default current_timestamp
 );
