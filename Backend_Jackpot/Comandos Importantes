@@ -1,3 +1,5 @@
+# Executar esses comandos no PowerShell
+
 pip install Flask
 pip install mariadb
 pip install bcrypt
