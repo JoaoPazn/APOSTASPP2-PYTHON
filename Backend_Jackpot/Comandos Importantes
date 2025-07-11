@@ -1,6 +1,10 @@
-# Executar esses comandos no PowerShell
+# Executar todos esses comandos no PowerShell:
 
-pip install Flask
-pip install mariadb
-pip install bcrypt
-pip install Flask-Cors
+# Para criar um ambiente virtual:
+python -m venv venv
+
+# Para abrir o ambiente virtual:
+.\venv\Scripts\activate
+
+# Instalar as bibliotecas necessárias dentro do ambiente virutal:
+pip install Flask mariadb bcrypt Flask-Cors
