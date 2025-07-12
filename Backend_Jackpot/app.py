@@ -41,7 +41,7 @@ def registrar_usuario():
     cursor = conn.cursor()  # Cria um cursor para executar comandos SQL
     try:
         cursor.execute(
-            "INSERT INTO usuario (nome_usuario, senha, gasto, ganho, saldoatual) VALUES (?, ?, 0, 0, 100.00)",
+            "INSERT INTO usuario (nome_usuario, senha_hash, gasto, ganho, saldoatual) VALUES (?, ?, 0, 0, 100.00)",
             (nome_usuario, senha_hash.decode("utf-8")),
         )
         conn.commit()
@@ -69,7 +69,7 @@ def login_usuario():
     
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT senha, saldoatual FROM usuario WHERE nome_usuario = ?", (nome_usuario,)) # Busca o usuário no banco de dados
+        cursor.execute("SELECT senha_hash, saldoatual FROM usuario WHERE nome_usuario = ?", (nome_usuario,)) # Busca o usuário no banco de dados
         usuario = cursor.fetchone()  # Obtém o primeiro resultado da consulta
 
         if usuario and bcrypt.checkpw(senha_texto.encode("utf-8"), usuario["senha"].encode("utf-8")): # Se a senha bate, retorna sucesso e os dados do usuário
