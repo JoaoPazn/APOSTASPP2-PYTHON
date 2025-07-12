@@ -29,7 +29,9 @@ def get_db_connection():  # Função para obter a conexão com o banco de dados
 def registrar_usuario():
     dados = request.get_json()  # Obtém os dados enviados pelo frontend em formato JSON
     nome_usuario = dados["nome_usuario"]
-    senha_texto = dados["senha"]
+    # --- CORREÇÃO AQUI ---
+    # O frontend envia a senha no campo "senha". O backend recebe e cria o hash.
+    senha_texto = dados["senha"] 
     senha_hash = bcrypt.hashpw(  # Criptografando a senha com bcrypt
         senha_texto.encode("utf-8"), bcrypt.gensalt()
     )
@@ -60,20 +62,20 @@ def registrar_usuario():
 @app.route("/login", methods=["POST"]) # Rota para fazer login
 def login_usuario():
     dados = request.get_json() 
-    nome_usuario = dados["nome_usuario"] 
-    senha_texto = dados["senha"]
+    nome_usuario = dados["nome_usuario"] # O frontend envia o nome de usuário no campo "nome_usuario" para o login. 
+    senha_texto = dados["senha"] # O frontend também envia a senha no campo "senha" para o login.
 
     conn = get_db_connection()
     if conn is None:
-        return jsonify({"erro:" "Falha na conexão com o banco de dados"}), 500
+        return jsonify({"erro": "Falha na conexão com o banco de dados"}), 500
     
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT senha_hash, saldoatual FROM usuario WHERE nome_usuario = ?", (nome_usuario,)) # Busca o usuário no banco de dados
         usuario = cursor.fetchone()  # Obtém o primeiro resultado da consulta
 
-        if usuario and bcrypt.checkpw(senha_texto.encode("utf-8"), usuario["senha"].encode("utf-8")): # Se a senha bate, retorna sucesso e os dados do usuário
-            return jsonify({"sucesso": True,   
+        if usuario and bcrypt.checkpw(senha_texto.encode("utf-8"), usuario["senha_hash"].encode("utf-8")): # Se a senha bate, retorna sucesso e os dados do usuário
+            return jsonify({"sucesso": True,  
                             "nome_usuario": nome_usuario, 
                             "saldo": usuario["saldoatual"]
                             }), 200
@@ -236,4 +238,4 @@ def adicionar_saldo():
 
 if __name__ == "__main__":
     app.run(debug=True) # Executa o servidor Flask em modo de depuração
-# o modo de depuração permite que você veja erros diretamente no navegador e recarrega o servidor automaticamente quando você faz alterações no código
+# O modo de depuração permite ver erros diretamente no navegador e recarrega o servidor automaticamente ao fazer alterações no código.
