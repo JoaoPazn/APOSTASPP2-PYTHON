@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tigrinho Slot Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes spin {
+        0% {
+          transform: rotateX(0deg);
+        }
+        100% {
+          transform: rotateX(360deg);
+        }
+      }
+      .slot-animation {
+        animation: spin 0.5s ease-out;
+      }
+      .slot-machine {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      }
+      .slot-cell {
+        background: white;
+        border-radius: 10px;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 3rem;
+        transition: all 0.3s ease;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4"
+  >
+    <!-- Modal de Login/Cadastro -->
+    <div id="authModal" class="modal">
+      <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">
+          Login
+        </h2>
+        <div id="loginForm">
+          <div class="mb-4">
+            <label class="block text-white mb-2">Nome de Usuário:</label>
+            <input
+              type="text"
+              id="loginUsername"
+              class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+            />
+          </div>
+          <div class="mb-6">
+            <label class="block text-white mb-2">Senha:</label>
+            <input
+              type="password"
+              id="loginPassword"
+              class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+            />
+          </div>
+          <button
+            id="loginBtn"
+            class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg mb-3"
+          >
+            Entrar
+          </button>
+          <button
+            id="showRegisterBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg"
+          >
+            Criar Nova Conta
+          </button>
+        </div>
+        <div id="registerForm" class="hidden">
+          <div class="mb-4">
+            <label class="block text-white mb-2">Novo Usuário:</label>
+            <input
+              type="text"
+              id="registerUsername"
+              class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="block text-white mb-2">Senha:</label>
+            <input
+              type="password"
+              id="registerPassword"
+              class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+            />
+          </div>
+          <div class="mb-6">
+            <label class="block text-white mb-2">Confirmar Senha:</label>
+            <input
+              type="password"
+              id="registerConfirmPassword"
+              class="w-full p-3 rounded bg-gray-700 text-white border border-gray-600"
+            />
+          </div>
+          <button
+            id="registerBtn"
+            class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg mb-3"
+          >
+            Cadastrar
+          </button>
+          <button
+            id="showLoginBtn"
+            class="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg"
+          >
+            Voltar para Login
+          </button>
+        </div>
+        <div id="authMessage" class="text-center mt-4 text-red-400 h-5"></div>
+      </div>
+    </div>
+
+    <!-- Jogo Principal -->
+    <div id="gameContainer" class="hidden w-full max-w-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl font-bold text-yellow-400">🎰 TIGRINHO SLOT 🎰</h1>
+        <div class="flex space-x-2">
+          <button
+            id="logoutBtn"
+            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+      <div class="slot-machine p-6 mb-8 relative">
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="slot-cell h-24" id="slot0"></div>
+          <div class="slot-cell h-24" id="slot1"></div>
+          <div class="slot-cell h-24" id="slot2"></div>
+          <div class="slot-cell h-24" id="slot3"></div>
+          <div class="slot-cell h-24" id="slot4"></div>
+          <div class="slot-cell h-24" id="slot5"></div>
+          <div class="slot-cell h-24" id="slot6"></div>
+          <div class="slot-cell h-24" id="slot7"></div>
+          <div class="slot-cell h-24" id="slot8"></div>
+        </div>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <div class="flex flex-col space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-white font-bold">Usuário:</span>
+            <span
+              id="usernameDisplay"
+              class="text-xl font-bold text-yellow-400"
+            ></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-white font-bold">Saldo:</span>
+            <span id="balance" class="text-2xl font-bold text-green-400"
+              >R$ 0.00</span
+            >
+          </div>
+          <div class="flex space-x-2">
+            <input
+              type="number"
+              id="betAmount"
+              placeholder="Valor da aposta"
+              class="flex-1 p-3 rounded bg-gray-700 text-white border border-gray-600 focus:border-yellow-400 focus:outline-none"
+            />
+            <button
+              id="addMoney"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded font-bold"
+            >
+              + Fundos
+            </button>
+          </div>
+          <button
+            id="spinButton"
+            class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-6 rounded-full text-lg transition-all transform hover:scale-105"
+          >
+            GIRAR 🎰
+          </button>
+          <div
+            id="result"
+            class="text-center text-lg font-semibold text-white min-h-8"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = "http://127.0.0.1:5000"; // URL do servidor Flask
+      let currentUser = null;
+      let isSpinning = false;
+
+      const Banana = ["🍌", 0.5],
+        Maca = ["🍎", 0.9],
+        Laranja = ["🍊", 1.4],
+        Uva = ["🍇", 1.7],
+        Jabuticaba = ["🍈", 2.8],
+        Goiaba = ["🥥", 6],
+        Manga = ["⭐", 50];
+
+      // Elementos DOM
+      const authModal = document.getElementById("authModal");
+      const gameContainer = document.getElementById("gameContainer");
+      const loginForm = document.getElementById("loginForm");
+      const registerForm = document.getElementById("registerForm");
+      const authMessage = document.getElementById("authMessage");
+      const balanceDisplay = document.getElementById("balance");
+      const usernameDisplay = document.getElementById("usernameDisplay");
+      const betInput = document.getElementById("betAmount");
+      const spinButton = document.getElementById("spinButton");
+      const addMoneyButton = document.getElementById("addMoney");
+      const resultDisplay = document.getElementById("result");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const slotElements = Array.from({ length: 9 }, (_, i) =>
+        document.getElementById(`slot${i}`)
+      );
+
+      // Funções de UI
+      function updateUI() {
+        if (currentUser) {
+          balanceDisplay.textContent = `R$ ${parseFloat(
+            currentUser.saldo
+          ).toFixed(2)}`;
+          usernameDisplay.textContent = currentUser.nome_usuario;
+        }
+      }
+
+      function showAuthMessage(message, isError = true) {
+        authMessage.textContent = message;
+        authMessage.style.color = isError ? "#f87171" : "#4ade80";
+        setTimeout(() => {
+          authMessage.textContent = "";
+        }, 4000);
+      }
+
+      function showGameScreen() {
+        authModal.style.display = "none";
+        gameContainer.classList.remove("hidden");
+        updateUI();
+      }
+
+      // Funções de Autenticação com integração
+      async function login(username, password) {
+        // Função para fazer login
+        try {
+          const response = await fetch(`${API_URL}/login`, {
+            // Envia a solicitação de login
+            method: "POST",
+            headers: { "Content-Type": "application/json" }, // Envia os dados como JSON
+            body: JSON.stringify({ nome_usuario: username, senha: password }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            currentUser = data;
+            showGameScreen();
+          } else {
+            showAuthMessage(data.erro || "Usuário ou senha incorretos");
+          }
+        } catch (error) {
+          showAuthMessage("Erro de conexão com o servidor.");
+        }
+      }
+
+      async function register(username, password) {
+        // Função para registrar um novo usuário
+        try {
+          const response = await fetch(`${API_URL}/registrar`, {
+            // Envia a solicitação de registro
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome_usuario: username, senha: password }),
+          });
+          const data = await response.json();
+          if (response.status === 201) {
+            // Verifica se o registro foi bem-sucedido
+            showAuthMessage("Usuário criado com sucesso! Faça o login.", false);
+            registerForm.classList.add("hidden");
+            loginForm.classList.remove("hidden");
+          } else {
+            showAuthMessage(data.erro || "Não foi possível registrar.");
+          }
+        } catch (error) {
+          showAuthMessage("Erro de conexão com o servidor.");
+        }
+      }
+
+      function logout() {
+        currentUser = null; // Limpa o usuário atual
+        authModal.style.display = "flex";
+        gameContainer.classList.add("hidden");
+        document.getElementById("loginUsername").value = "";
+        document.getElementById("loginPassword").value = "";
+      }
+
+      // Função para adicionar fundos via backend
+      async function adicionarDinheiro() {
+        if (!currentUser)
+          return alert("Você precisa estar logado para adicionar fundos.");
+        const valorStr = prompt(
+          "Quanto dinheiro fictício você deseja adicionar?"
+        );
+        if (valorStr === null) return;
+        const valor = parseFloat(valorStr);
+        if (isNaN(valor) || valor <= 0)
+          return alert("Por favor, insira um valor numérico positivo.");
+
+        try {
+          const response = await fetch(`${API_URL}/usuario/adicionar_saldo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              login_usuario: currentUser.nome_usuario,
+              valor: valor,
+            }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            currentUser.saldo = data.novo_saldo;
+            updateUI();
+            alert(`R$ ${valor.toFixed(2)} adicionados com sucesso!`);
+          } else {
+            alert(`Erro: ${data.erro}`);
+          }
+        } catch (error) {
+          alert(`Erro de conexão com o servidor: ${error.message}`);
+        }
+      }
+
+      // Lógica do Jogo (Simulação no Frontend)
+      function checarapostas(valor) {
+        const frutas = {
+          "🍌": 0.5,
+          "🍎": 0.9,
+          "🍊": 1.4,
+          "🍇": 1.7,
+          "🍈": 2.8,
+          "🥥": 6,
+          "⭐": 50,
+        };
+        return frutas[valor] || 0;
+      }
+
+      function ordem(Array_Apostas) {
+        let multi = 0;
+        for (let i = 0; i < 9; i += 3) {
+          if (
+            Array_Apostas[i] === Array_Apostas[i + 1] &&
+            Array_Apostas[i] === Array_Apostas[i + 2]
+          ) {
+            multi += checarapostas(Array_Apostas[i]);
+          }
+        }
+        for (let i = 0; i < 3; i++) {
+          if (
+            Array_Apostas[i] === Array_Apostas[i + 3] &&
+            Array_Apostas[i] === Array_Apostas[i + 6]
+          ) {
+            multi += checarapostas(Array_Apostas[i]);
+          }
+        }
+        if (
+          Array_Apostas[0] === Array_Apostas[4] &&
+          Array_Apostas[0] === Array_Apostas[8]
+        ) {
+          multi += checarapostas(Array_Apostas[0]);
+        }
+        if (
+          Array_Apostas[2] === Array_Apostas[4] &&
+          Array_Apostas[2] === Array_Apostas[6]
+        ) {
+          multi += checarapostas(Array_Apostas[2]);
+        }
+        if (Array_Apostas.every((elem) => elem === Array_Apostas[0])) {
+          multi *= 10;
+        }
+        return multi;
+      }
+
+      function gerar_slot() {
+        const Slot = [];
+        for (let i = 0; i < 9; i++) {
+          const GAMB = Math.floor(Math.random() * 1000) + 1;
+          if (GAMB <= 400) Slot.push(Banana[0]);
+          else if (GAMB <= 650) Slot.push(Maca[0]);
+          else if (GAMB <= 800) Slot.push(Laranja[0]);
+          else if (GAMB <= 900) Slot.push(Uva[0]);
+          else if (GAMB <= 975) Slot.push(Jabuticaba[0]);
+          else if (GAMB <= 990) Slot.push(Goiaba[0]);
+          else Slot.push(Manga[0]);
+        }
+        return Slot;
+      }
+
+      function mostrar_slot(Slot) {
+        Slot.forEach((fruit, index) => {
+          slotElements[index].textContent = fruit;
+          slotElements[index].classList.add("slot-animation");
+          setTimeout(() => {
+            slotElements[index].classList.remove("slot-animation");
+          }, 500);
+        });
+      }
+
+      // Função de Aposta com integração
+      async function apostas() {
+        if (isSpinning) return;
+
+        const aposta = parseFloat(betInput.value);
+        if (isNaN(aposta) || aposta <= 0)
+          return (resultDisplay.textContent = "Valor de aposta inválido!");
+        if (aposta > currentUser.saldo)
+          return (resultDisplay.textContent = "Saldo insuficiente!");
+
+        isSpinning = true;
+        spinButton.disabled = true;
+        resultDisplay.textContent = "Girando...";
+
+        const Slot = gerar_slot();
+        mostrar_slot(Slot);
+
+        const multi = ordem(Slot);
+        const gasto = aposta;
+        const ganho = aposta * multi;
+
+        if (multi > 0) {
+          resultDisplay.innerHTML = `<span class="text-green-400">Multiplicador: ${multi.toFixed(
+            2
+          )}x.</span> <span class="text-yellow-300">Você ganhou: R$ ${ganho.toFixed(
+            2
+          )}</span>`;
+        } else {
+          resultDisplay.textContent = "Você perdeu. Tente novamente!";
+        }
+
+        // Envia o resultado para o backend
+        try {
+          const response = await fetch(`${API_URL}/aposta/tigrinho`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              login_usuario: currentUser.nome_usuario,
+              gasto: gasto,
+              ganho: ganho,
+            }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            currentUser.saldo = data.novo_saldo;
+            updateUI();
+          } else {
+            resultDisplay.textContent = `Erro: ${data.erro}`;
+          }
+        } catch (error) {
+          resultDisplay.textContent = `Erro de conexão: ${error.message}`;
+        } finally {
+          isSpinning = false;
+          spinButton.disabled = false;
+        }
+      }
+
+      // Event Listeners
+      document.getElementById("loginBtn").addEventListener("click", () => {
+        const u = document.getElementById("loginUsername").value.trim();
+        const p = document.getElementById("loginPassword").value;
+        if (!u || !p) return showAuthMessage("Preencha todos os campos");
+        login(u, p);
+      });
+
+      document.getElementById("registerBtn").addEventListener("click", () => {
+        const u = document.getElementById("registerUsername").value.trim();
+        const p = document.getElementById("registerPassword").value;
+        const cp = document.getElementById("registerConfirmPassword").value;
+        if (!u || !cp) return showAuthMessage("Preencha todos os campos");
+        if (p !== cp) return showAuthMessage("As senhas não coincidem.");
+        register(u, p);
+      });
+
+      document
+        .getElementById("showRegisterBtn")
+        .addEventListener("click", () => {
+          loginForm.classList.add("hidden");
+          registerForm.classList.remove("hidden");
+        });
+
+      document.getElementById("showLoginBtn").addEventListener("click", () => {
+        registerForm.classList.add("hidden");
+        loginForm.classList.remove("hidden");
+      });
+
+      spinButton.addEventListener("click", apostas);
+      addMoneyButton.addEventListener("click", adicionarDinheiro);
+      logoutBtn.addEventListener("click", logout);
+
+      window.addEventListener("DOMContentLoaded", () => {
+        authModal.style.display = "flex";
+        document.getElementById("loginUsername").focus();
+      });
+    </script>
+  </body>
+</html>

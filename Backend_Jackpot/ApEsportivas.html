@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jogo de Apostas - Times Brasileiros</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .painel-apostas {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      }
+      body.modal-open {
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-900 text-white font-sans min-h-screen flex items-center justify-center p-4"
+  >
+    <!-- Modal de Login/Cadastro -->
+    <div
+      id="authModal"
+      class="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50"
+    >
+      <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">
+          Login
+        </h2>
+
+        <div id="loginForm">
+          <input
+            type="text"
+            id="loginUsername"
+            placeholder="Usuário"
+            class="w-full mb-3 p-3 rounded bg-gray-700 text-white"
+          />
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Senha"
+            class="w-full mb-3 p-3 rounded bg-gray-700 text-white"
+          />
+          <button
+            id="loginBtn"
+            class="w-full bg-green-600 py-2 rounded mb-2 hover:bg-green-700"
+          >
+            Entrar
+          </button>
+          <button
+            id="showRegisterBtn"
+            class="w-full bg-blue-600 py-2 rounded hover:bg-blue-700"
+          >
+            Criar Conta
+          </button>
+        </div>
+
+        <div id="registerForm" class="hidden">
+          <input
+            type="text"
+            id="registerUsername"
+            placeholder="Novo Usuário"
+            class="w-full mb-3 p-3 rounded bg-gray-700 text-white"
+          />
+          <input
+            type="password"
+            id="registerPassword"
+            placeholder="Senha"
+            class="w-full mb-3 p-3 rounded bg-gray-700 text-white"
+          />
+          <input
+            type="password"
+            id="registerConfirmPassword"
+            placeholder="Confirmar Senha"
+            class="w-full mb-3 p-3 rounded bg-gray-700 text-white"
+          />
+          <button
+            id="registerBtn"
+            class="w-full bg-purple-600 py-2 rounded mb-2 hover:bg-purple-700"
+          >
+            Cadastrar
+          </button>
+          <button
+            id="showLoginBtn"
+            class="w-full bg-gray-600 py-2 rounded hover:bg-gray-700"
+          >
+            Voltar
+          </button>
+        </div>
+
+        <div id="authMessage" class="text-red-400 mt-4 text-center h-5"></div>
+      </div>
+    </div>
+
+    <!-- Container Principal -->
+    <div id="gameContainer" class="hidden w-full max-w-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-4xl font-bold text-yellow-400">
+          ⚽ Apostas Brasileiras ⚽
+        </h1>
+        <button
+          id="logoutBtn"
+          class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+        >
+          Sair
+        </button>
+      </div>
+
+      <div class="painel-apostas p-6 rounded-lg text-white">
+        <div class="mb-4 flex justify-between">
+          <span class="font-bold">Usuário:</span>
+          <span id="usernameDisplay"></span>
+        </div>
+        <div class="mb-4 flex justify-between">
+          <span class="font-bold">Saldo:</span>
+          <span>R$ <span id="balance">0.00</span></span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+          <button
+            id="addMoneyBtn"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 px-4 py-3 rounded font-bold"
+          >
+            + Fundos
+          </button>
+          <button
+            id="betBtn"
+            class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold px-4 py-3 rounded"
+          >
+            FAZER APOSTA
+          </button>
+        </div>
+
+        <div
+          id="output"
+          class="text-center text-lg font-semibold min-h-10"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      // Configurações da API para conectar ao backend Flask
+      const API_URL = "http://127.0.0.1:5000";
+      let currentUser = null; // Guarda os dados do usuário logado
+
+      const times = [
+        "Flamengo",
+        "Palmeiras",
+        "São Paulo",
+        "Corinthians",
+        "Grêmio",
+        "Internacional",
+        "Atlético Mineiro",
+        "Cruzeiro",
+        "Fluminense",
+        "Botafogo",
+        "Santos",
+        "Bahia",
+        "Fortaleza",
+        "Athletico Paranaense",
+        "Vasco da Gama",
+      ];
+      const VITORIA_MULT = 2.0,
+        DERROTA_MULT = 0.5,
+        PLACAR_MULT = 10.0,
+        PLACAR_CHANCE = 1 / 100;
+
+      function gerarPlacar() {
+        return [Math.floor(Math.random() * 4), Math.floor(Math.random() * 4)];
+      }
+
+      // Funções de UI (Interface do Usuário)
+      function atualizarUI() {
+        if (!currentUser) return;
+        document.getElementById("usernameDisplay").textContent =
+          currentUser.nome_usuario;
+        document.getElementById("balance").textContent = parseFloat(
+          currentUser.saldo
+        ).toFixed(2);
+      }
+
+      function mostrarMensagem(msg, isError = true) {
+        const el = document.getElementById("authMessage");
+        el.textContent = msg;
+        el.style.color = isError ? "#f87171" : "#4ade80"; // Vermelho para erro, verde para sucesso
+        setTimeout(() => (el.textContent = ""), 4000);
+      }
+
+      function mostrarResultado(msg, color = "white") {
+        const el = document.getElementById("output");
+        el.textContent = msg;
+        el.style.color = color;
+      }
+
+      // Função para registrar a aposta no backend
+      async function registrarApostaBackend(gasto, ganho) {
+        try {
+          const response = await fetch(`${API_URL}/aposta/esporte`, {
+            // Envia a aposta para o servidor
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              login_usuario: currentUser.nome_usuario,
+              gasto: gasto,
+              ganho: ganho,
+            }),
+          });
+          const data = await response.json(); // Recebe a resposta do servidor
+          if (response.ok) {
+            currentUser.saldo = data.novo_saldo; // Atualiza o saldo com a resposta do servidor
+            atualizarUI();
+          } else {
+            mostrarResultado(
+              `Erro ao registrar aposta: ${data.erro}`,
+              "#f87171"
+            );
+          }
+        } catch (error) {
+          // Trata erros de conexão com o servidor
+          mostrarResultado(
+            `Erro de conexão com o servidor: ${error.message}`,
+            "#f87171"
+          );
+        }
+      }
+
+      // Função de Aposta com integração ao backend
+      function fazerAposta() {
+        if (!currentUser)
+          return mostrarResultado(
+            "Você precisa estar logado para apostar.",
+            "#facc15"
+          );
+
+        let valor = parseFloat(prompt("Quanto deseja apostar?"));
+        if (isNaN(valor) || valor <= 0)
+          return mostrarResultado("Valor da aposta inválido.", "#facc15");
+        if (valor > currentUser.saldo)
+          return mostrarResultado("Saldo insuficiente.", "#facc15");
+
+        let escolha =
+          parseInt(prompt(times.map((t, i) => `${i + 1}. ${t}`).join("\n"))) -
+          1;
+        if (isNaN(escolha) || escolha < 0 || escolha >= times.length)
+          return mostrarResultado("Escolha de time inválida.", "#facc15");
+        let timeEscolhido = times[escolha];
+
+        let adversario;
+        do {
+          adversario = times[Math.floor(Math.random() * times.length)];
+        } while (adversario === timeEscolhido);
+
+        let tipo = parseInt(
+          prompt("1. Vitória (2x)\n2. Derrota (0.5x)\n3. Placar Exato (10x)")
+        );
+        if (![1, 2, 3].includes(tipo))
+          return mostrarResultado("Tipo de aposta inválido.", "#facc15");
+
+        let placarAposta = null;
+        if (tipo === 3) {
+          placarAposta = prompt("Digite o placar (ex: 2-1)")
+            .split("-")
+            .map(Number);
+          if (placarAposta.length !== 2 || placarAposta.some(isNaN))
+            return mostrarResultado("Placar inválido.", "#facc15");
+        }
+
+        let [golsCasa, golsVisitante] = gerarPlacar();
+        let msg = `${timeEscolhido} ${golsCasa} x ${golsVisitante} ${adversario}\n`;
+
+        let gasto = valor;
+        let ganho = 0;
+        let corResultado = "#f87171"; // Vermelho (perdeu) por padrão
+
+        if (tipo === 1 && golsCasa > golsVisitante) {
+          ganho = valor * VITORIA_MULT;
+          msg += `Vitória! Você recebeu R$ ${ganho.toFixed(2)}`;
+          corResultado = "#4ade80"; // Verde (ganhou)
+        } else if (tipo === 2 && golsCasa < golsVisitante) {
+          ganho = valor * DERROTA_MULT;
+          msg += `Derrota! Você recebeu R$ ${ganho.toFixed(2)}`;
+          corResultado = "#4ade80";
+        } else if (
+          tipo === 3 &&
+          placarAposta &&
+          golsCasa === placarAposta[0] &&
+          golsVisitante === placarAposta[1] &&
+          Math.random() < PLACAR_CHANCE
+        ) {
+          ganho = valor * PLACAR_MULT;
+          msg += `Placar Exato! Você recebeu R$ ${ganho.toFixed(2)}`;
+          corResultado = "#4ade80";
+        } else {
+          msg += "Perdeu a aposta.";
+        }
+
+        mostrarResultado(msg, corResultado);
+        registrarApostaBackend(gasto, ganho); // Envia o resultado para o servidor
+      }
+
+      // Função para adicionar fundos via backend
+      async function adicionarDinheiro() {
+        if (!currentUser)
+          return alert("Você precisa estar logado para adicionar fundos.");
+        const valorStr = prompt(
+          "Quanto dinheiro fictício você deseja adicionar?"
+        );
+        if (valorStr === null) return;
+        const valor = parseFloat(valorStr);
+        if (isNaN(valor) || valor <= 0)
+          return alert("Por favor, insira um valor numérico positivo.");
+
+        try {
+          const response = await fetch(`${API_URL}/usuario/adicionar_saldo`, {
+            // Envia a solicitação para adicionar saldo
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              login_usuario: currentUser.nome_usuario,
+              valor: valor,
+            }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            // Se a resposta for bem-sucedida, atualiza o saldo do usuário
+            currentUser.saldo = data.novo_saldo;
+            atualizarUI();
+            alert(`R$ ${valor.toFixed(2)} adicionados com sucesso!`);
+          } else {
+            alert(`Erro: ${data.erro}`);
+          }
+        } catch (error) {
+          alert(`Erro de conexão com o servidor: ${error.message}`);
+        }
+      }
+
+      // Funções de Autenticação com integração ao backend
+      async function login(username, password) {
+        try {
+          const response = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nome_usuario: username, senha: password }),
+          });
+          const data = await response.json();
+          if (response.ok) {
+            currentUser = data;
+            document.getElementById("authModal").style.display = "none";
+            document.getElementById("gameContainer").classList.remove("hidden");
+            atualizarUI();
+          } else {
+            mostrarMensagem(data.erro || "Credenciais inválidas");
+          }
+        } catch (error) {
+          mostrarMensagem("Erro de conexão com o servidor.");
+        }
+      }
+
+      async function register(username, password) {
+        // Função para registrar um novo usuário
+        try {
+          const response = await fetch(`${API_URL}/registrar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }, // Envia os dados como JSON
+            body: JSON.stringify({ nome_usuario: username, senha: password }),
+          });
+          const data = await response.json();
+          if (response.status === 201) {
+            mostrarMensagem("Usuário criado com sucesso! Faça o login.", false);
+            document.getElementById("registerForm").classList.add("hidden");
+            document.getElementById("loginForm").classList.remove("hidden");
+          } else {
+            mostrarMensagem(data.erro || "Não foi possível registrar.");
+          }
+        } catch (error) {
+          mostrarMensagem("Erro de conexão com o servidor.");
+        }
+      }
+
+      // Event Listeners (Ouvintes de Eventos para os botões)
+      document.getElementById("loginBtn").onclick = () => {
+        const u = document.getElementById("loginUsername").value.trim();
+        const p = document.getElementById("loginPassword").value;
+        if (!u || !p) return mostrarMensagem("Preencha todos os campos.");
+        login(u, p);
+      };
+
+      document.getElementById("registerBtn").onclick = () => {
+        const u = document.getElementById("registerUsername").value.trim();
+        const p = document.getElementById("registerPassword").value;
+        const cp = document.getElementById("registerConfirmPassword").value;
+        if (!u || !p || !cp)
+          return mostrarMensagem("Preencha todos os campos.");
+        if (p !== cp) return mostrarMensagem("As senhas não coincidem.");
+        register(u, p);
+      };
+
+      document.getElementById("showRegisterBtn").onclick = () => {
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("registerForm").classList.remove("hidden");
+      };
+
+      document.getElementById("showLoginBtn").onclick = () => {
+        document.getElementById("registerForm").classList.add("hidden");
+        document.getElementById("loginForm").classList.remove("hidden");
+      };
+
+      document.getElementById("logoutBtn").onclick = () => {
+        currentUser = null;
+        document.getElementById("authModal").style.display = "flex";
+        document.getElementById("gameContainer").classList.add("hidden");
+        document.getElementById("output").textContent = "";
+        document.getElementById("loginUsername").value = "";
+        document.getElementById("loginPassword").value = "";
+      };
+
+      document.getElementById("addMoneyBtn").onclick = adicionarDinheiro;
+      document.getElementById("betBtn").onclick = fazerAposta;
+
+      window.onload = () => {
+        document.getElementById("authModal").style.display = "flex";
+      };
+    </script>
+  </body>
+</html>
