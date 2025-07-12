@@ -196,6 +196,44 @@ def registrar_aposta_roleta():
         cursor.close()
         conn.close()
 
+
+@app.route('/usuario/adicionar_saldo', methods=['POST']) # Rota para adicionar saldo ao usuário
+def adicionar_saldo():
+    dados = request.get_json()
+    login_usuario = dados.get('login_usuario')
+    valor = dados.get('valor')
+
+    if not login_usuario or not isinstance(valor, (int, float)) or valor <= 0:
+        return jsonify({'erro': 'Dados inválidos fornecidos.'}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'erro': 'Falha na conexão com o banco de dados'}), 500
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute( # Adiciona o valor ao saldo atual do usuário
+            "UPDATE usuario SET saldoatual = saldoatual + ? WHERE nome_usuario = ?",
+            (valor, login_usuario)
+        )
+        if cursor.rowcount == 0: # Verifica se algum usuário foi de fato atualizado
+            return jsonify({'erro': 'Usuário não encontrado.'}), 404
+            
+        conn.commit()
+
+        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,)) # Pega o saldo mais recente para retornar ao frontend
+        novo_saldo = cursor.fetchone()[0]
+
+        return jsonify({'sucesso': True, 'novo_saldo': novo_saldo}), 200
+
+    except mariadb.Error as e:
+        conn.rollback()
+        return jsonify({'erro': f'Erro ao adicionar saldo: {e}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
 if __name__ == "__main__":
     app.run(debug=True) # Executa o servidor Flask em modo de depuração
 # o modo de depuração permite que você veja erros diretamente no navegador e recarrega o servidor automaticamente quando você faz alterações no código
