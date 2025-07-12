@@ -9,7 +9,7 @@ CORS(app)  # Permite requisições do HTML, assim o fontend se comunica com o ba
 db_config = {  # Configurando a conexão com o banco de dados
     "host": "127.0.0.1",
     "user": "root",
-    "password": "senha_aqui",  # NÃO SE ESQUECA DE ALTERAR A SENHA!
+    "password": "lucianajuan",  # NÃO SE ESQUECA DE ALTERAR A SENHA!
     "database": "jackpot_if",
 }
 
