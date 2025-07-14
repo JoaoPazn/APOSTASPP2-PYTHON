@@ -1,39 +1,58 @@
-create schema jackpot_if;
-use jackpot_if;
+CREATE SCHEMA jackpot_if;
+USE jackpot_if;
 
-create table usuario(
-id int auto_increment, -- ID se auto incrementa quando um usuário é criado.
-primary key(id),
-nome_usuario varchar(99) not null unique key,
-senha_hash varchar(255) not null,
-gasto float,
-ganho float,
-saldoatual float
+CREATE TABLE usuario(
+    id INT AUTO_INCREMENT, -- ID se auto incrementa quando um usuário é logado
+    PRIMARY KEY(id),
+    nome_usuario VARCHAR(99) NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL,
+    gasto FLOAT,
+    ganho FLOAT,
+    saldoatual FLOAT
 );
 
-create table tigrinho(
-id_aposta int auto_increment, -- ID para cada jogada ser única
-primary key(id_aposta), 
-login_usuario varchar(99),-- Para saber qual usuário jogou
-gastotig float, 
-ganhotig float,
-data_aposta timestamp default current_timestamp
+CREATE TABLE tigrinho(
+    id_aposta INT AUTO_INCREMENT,
+    PRIMARY KEY(id_aposta),
+    login_usuario VARCHAR(99), -- Para saber qual usuário jogou
+    gastotig FLOAT,
+    ganhotig FLOAT,
+    data_aposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-create table roleta(
-id_aposta int auto_increment,
-primary key(id_aposta), 
-login_usuario varchar(99),
-gastorol float, 
-ganhorol float,
-data_aposta timestamp default current_timestamp
+CREATE TABLE roleta(
+    id_aposta INT AUTO_INCREMENT,
+    PRIMARY KEY(id_aposta),
+    login_usuario VARCHAR(99),
+    gastorol FLOAT,
+    ganhorol FLOAT,
+    data_aposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-create table esporte(
-id_aposta int auto_increment,
-primary key(id_aposta), 
-login_usuario varchar(99),
-gastoesp float, 
-ganhoesp float,
-data_aposta timestamp default current_timestamp
+CREATE TABLE esporte(
+    id_aposta INT AUTO_INCREMENT,
+    PRIMARY KEY(id_aposta),
+    login_usuario VARCHAR(99),
+    gastoesp FLOAT,
+    ganhoesp FLOAT,
+    data_aposta TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE sessoes_usuario (
+    id_sessao INT AUTO_INCREMENT,
+    PRIMARY KEY(id_sessao),
+    id_usuario INT NOT NULL,
+    data_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_logout TIMESTAMP NULL,
+    duracao_minutos INT,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id)
+);
+
+CREATE TABLE log_depositos (
+    id_deposito INT AUTO_INCREMENT,
+    PRIMARY KEY(id_deposito),
+    id_usuario INT NOT NULL,
+    valor_adicionado FLOAT NOT NULL,
+    data_deposito TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id)
 );
