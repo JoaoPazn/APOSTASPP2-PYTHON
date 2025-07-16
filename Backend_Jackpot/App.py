@@ -29,7 +29,6 @@ def get_db_connection():  # Função para obter a conexão com o banco de dados
 def registrar_usuario():
     dados = request.get_json()  # Obtém os dados enviados pelo frontend em formato JSON
     nome_usuario = dados["nome_usuario"]
-    # --- CORREÇÃO AQUI ---
     # O frontend envia a senha no campo "senha". O backend recebe e cria o hash.
     senha_texto = dados["senha"] 
     senha_hash = bcrypt.hashpw(  # Criptografando a senha com bcrypt
