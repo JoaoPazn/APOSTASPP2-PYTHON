@@ -198,9 +198,10 @@
 
     <script>
       const API_URL = "http://127.0.0.1:5000"; // URL do servidor Flask
-      let currentUser = null;
+      let currentUser = null; // Guarda os dados do usuário logado (nome, saldo, id_usuario, id_sessao)
       let isSpinning = false;
 
+      // Configuração do Jogo
       const Banana = ["🍌", 0.5],
         Maca = ["🍎", 0.9],
         Laranja = ["🍊", 1.4],
@@ -252,16 +253,15 @@
 
       // Funções de Autenticação com integração
       async function login(username, password) {
-        // Função para fazer login
         try {
           const response = await fetch(`${API_URL}/login`, {
-            // Envia a solicitação de login
             method: "POST",
-            headers: { "Content-Type": "application/json" }, // Envia os dados como JSON
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nome_usuario: username, senha: password }),
           });
           const data = await response.json();
           if (response.ok) {
+            // Armazena todos os dados do usuário, incluindo IDs
             currentUser = data;
             showGameScreen();
           } else {
@@ -273,17 +273,14 @@
       }
 
       async function register(username, password) {
-        // Função para registrar um novo usuário
         try {
           const response = await fetch(`${API_URL}/registrar`, {
-            // Envia a solicitação de registro
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nome_usuario: username, senha: password }),
           });
           const data = await response.json();
           if (response.status === 201) {
-            // Verifica se o registro foi bem-sucedido
             showAuthMessage("Usuário criado com sucesso! Faça o login.", false);
             registerForm.classList.add("hidden");
             loginForm.classList.remove("hidden");
@@ -295,12 +292,25 @@
         }
       }
 
-      function logout() {
-        currentUser = null; // Limpa o usuário atual
-        authModal.style.display = "flex";
-        gameContainer.classList.add("hidden");
-        document.getElementById("loginUsername").value = "";
-        document.getElementById("loginPassword").value = "";
+      // Função de logout agora se comunica com o backend
+      async function logout() {
+        if (!currentUser) return;
+
+        try {
+          await fetch(`${API_URL}/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_sessao: currentUser.id_sessao }),
+          });
+        } catch (error) {
+          console.error("Erro ao finalizar sessão no servidor:", error);
+        } finally {
+          currentUser = null;
+          authModal.style.display = "flex";
+          gameContainer.classList.add("hidden");
+          document.getElementById("loginUsername").value = "";
+          document.getElementById("loginPassword").value = "";
+        }
       }
 
       // Função para adicionar fundos via backend
@@ -320,7 +330,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              login_usuario: currentUser.nome_usuario,
+              id_usuario: currentUser.id_usuario,
               valor: valor,
             }),
           });
@@ -415,24 +425,19 @@
       // Função de Aposta com integração
       async function apostas() {
         if (isSpinning) return;
-
         const aposta = parseFloat(betInput.value);
         if (isNaN(aposta) || aposta <= 0)
           return (resultDisplay.textContent = "Valor de aposta inválido!");
         if (aposta > currentUser.saldo)
           return (resultDisplay.textContent = "Saldo insuficiente!");
-
         isSpinning = true;
         spinButton.disabled = true;
         resultDisplay.textContent = "Girando...";
-
         const Slot = gerar_slot();
         mostrar_slot(Slot);
-
         const multi = ordem(Slot);
         const gasto = aposta;
         const ganho = aposta * multi;
-
         if (multi > 0) {
           resultDisplay.innerHTML = `<span class="text-green-400">Multiplicador: ${multi.toFixed(
             2
@@ -442,8 +447,6 @@
         } else {
           resultDisplay.textContent = "Você perdeu. Tente novamente!";
         }
-
-        // Envia o resultado para o backend
         try {
           const response = await fetch(`${API_URL}/aposta/tigrinho`, {
             method: "POST",
@@ -481,7 +484,7 @@
         const u = document.getElementById("registerUsername").value.trim();
         const p = document.getElementById("registerPassword").value;
         const cp = document.getElementById("registerConfirmPassword").value;
-        if (!u || !cp) return showAuthMessage("Preencha todos os campos");
+        if (!u || !p || !cp) return showAuthMessage("Preencha todos os campos");
         if (p !== cp) return showAuthMessage("As senhas não coincidem.");
         register(u, p);
       });
@@ -500,6 +503,7 @@
 
       spinButton.addEventListener("click", apostas);
       addMoneyButton.addEventListener("click", adicionarDinheiro);
+      // O clique no botão de logout agora chama a nova função async
       logoutBtn.addEventListener("click", logout);
 
       window.addEventListener("DOMContentLoaded", () => {
