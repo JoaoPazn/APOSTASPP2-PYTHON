@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import mariadb
 import bcrypt  # Criptografia para senhas
+from datetime import datetime # Importa o módulo datetime para lidar com o tempo
 
 app = Flask(__name__)
 CORS(app)  # Permite requisições do HTML, assim o fontend se comunica com o backend
@@ -29,7 +30,8 @@ def get_db_connection():  # Função para obter a conexão com o banco de dados
 def registrar_usuario():
     dados = request.get_json()  # Obtém os dados enviados pelo frontend em formato JSON
     nome_usuario = dados["nome_usuario"]
-    senha_texto = dados["senha"] # O frontend envia a senha no campo "senha". O backend recebe e cria o hash.
+    # O frontend envia a senha no campo "senha". O backend recebe e cria o hash.
+    senha_texto = dados["senha"] 
     senha_hash = bcrypt.hashpw(  # Criptografando a senha com bcrypt
         senha_texto.encode("utf-8"), bcrypt.gensalt()
     )
@@ -69,14 +71,25 @@ def login_usuario():
     
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT senha_hash, saldoatual FROM usuario WHERE nome_usuario = ?", (nome_usuario,)) # Busca o usuário no banco de dados
+        # Busca também o ID do usuário 
+        cursor.execute("SELECT id, senha_hash, saldoatual FROM usuario WHERE nome_usuario = ?", (nome_usuario,)) # Busca o usuário no banco de dados
         usuario = cursor.fetchone()  # Obtém o primeiro resultado da consulta
 
         if usuario and bcrypt.checkpw(senha_texto.encode("utf-8"), usuario["senha_hash"].encode("utf-8")): # Se a senha bate, retorna sucesso e os dados do usuário
-            return jsonify({"sucesso": True,  
-                            "nome_usuario": nome_usuario, 
-                            "saldo": usuario["saldoatual"]
-                            }), 200
+            
+            # Inicia uma nova sessão
+            id_usuario = usuario['id']
+            cursor.execute("INSERT INTO sessoes_usuario (id_usuario) VALUES (?)", (id_usuario,))
+            conn.commit()
+            id_sessao = cursor.lastrowid # Pega o ID da sessão que acabamos de criar
+
+            return jsonify({
+                "sucesso": True,  
+                "nome_usuario": nome_usuario, 
+                "saldo": usuario["saldoatual"],
+                "id_usuario": id_usuario, # Envia o id do usuário para o frontend
+                "id_sessao": id_sessao # Envia o id da sessão para o frontend
+            }), 200
         else:
             return jsonify({"erro": "Usuário ou senha inválidos"}), 401 # Se não bate, retorna erro de autenticação
     except mariadb.Error as e:
@@ -84,6 +97,41 @@ def login_usuario():
     finally:
         cursor.close()
         conn.close()
+
+#  Rota para finalizar a sessão do usuário
+@app.route("/logout", methods=["POST"])
+def logout_usuario():
+    dados = request.get_json()
+    id_sessao = dados.get('id_sessao')
+
+    if not id_sessao:
+        return jsonify({"erro": "ID da sessão não fornecido."}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'erro': 'Falha na conexão com o banco de dados'}), 500
+
+    cursor = conn.cursor()
+    try:
+        # Atualiza a sessão com a data de logout e calcula a duração em minutos
+        cursor.execute(
+            """
+            UPDATE sessoes_usuario 
+            SET data_logout = CURRENT_TIMESTAMP, 
+                duracao_minutos = TIMESTAMPDIFF(MINUTE, data_login, CURRENT_TIMESTAMP)
+            WHERE id_sessao = ? AND data_logout IS NULL
+            """,
+            (id_sessao,)
+        )
+        conn.commit()
+        return jsonify({"sucesso": True, "mensagem": "Sessão finalizada com sucesso."}), 200
+    except mariadb.Error as e:
+        conn.rollback()
+        return jsonify({'erro': f'Erro ao finalizar sessão: {e}'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.route('/aposta/esporte', methods=['POST']) # Rota para registrar uma aposta em esportes
 def registrar_aposta_esporte(): 
@@ -98,25 +146,15 @@ def registrar_aposta_esporte():
 
     cursor = conn.cursor()
     try:
-        
-        cursor.execute( # Insere o registro da aposta na tabela 'esporte'
-            "INSERT INTO esporte (login_usuario, gastoesp, ganhoesp) VALUES (?, ?, ?)",
-            (login_usuario, gasto, ganho)
-        )
-
-        saldo_final_aposta = ganho - gasto # Calcula o saldo final da aposta
-        cursor.execute( # Atualiza o saldo do usuário na tabela 'usuario'
-            "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?",
-            (gasto, ganho, saldo_final_aposta, login_usuario)
-        ) 
-        conn.commit() # Confirma as alterações no banco de dados
-
-        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,)) # Pega o saldo mais recente
+        cursor.execute( "INSERT INTO esporte (login_usuario, gastoesp, ganhoesp) VALUES (?, ?, ?)", (login_usuario, gasto, ganho) )
+        saldo_final_aposta = ganho - gasto
+        cursor.execute( "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?", (gasto, ganho, saldo_final_aposta, login_usuario) ) 
+        conn.commit()
+        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,))
         novo_saldo = cursor.fetchone()[0]
-
         return jsonify({'sucesso': True, 'novo_saldo': novo_saldo}), 200
     except mariadb.Error as e:
-        conn.rollback() # Desfaz as operações se der erro
+        conn.rollback()
         return jsonify({'erro': f'Erro ao registrar aposta: {e}'}), 500
     finally:
         cursor.close()
@@ -135,25 +173,15 @@ def registrar_aposta_tigrinho():
 
     cursor = conn.cursor()
     try:
-        
-        cursor.execute( # Insere o registro da aposta na tabela 'tigrinho'
-            "INSERT INTO tigrinho (login_usuario, gastotig, ganhotig) VALUES (?, ?, ?)",
-            (login_usuario, gasto, ganho)
-        )
-
-        saldo_final_aposta = ganho - gasto # Calcula o saldo final da aposta
-        cursor.execute( # Atualiza o saldo do usuário na tabela 'usuario'
-            "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?",
-            (gasto, ganho, saldo_final_aposta, login_usuario)
-        ) 
-        conn.commit() # Confirma as alterações no banco de dados
-
-        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,)) # Pega o saldo mais recente
+        cursor.execute( "INSERT INTO tigrinho (login_usuario, gastotig, ganhotig) VALUES (?, ?, ?)", (login_usuario, gasto, ganho) )
+        saldo_final_aposta = ganho - gasto
+        cursor.execute( "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?", (gasto, ganho, saldo_final_aposta, login_usuario) ) 
+        conn.commit()
+        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,))
         novo_saldo = cursor.fetchone()[0]
-
         return jsonify({'sucesso': True, 'novo_saldo': novo_saldo}), 200
     except mariadb.Error as e:
-        conn.rollback() # Desfaz as operações se der erro
+        conn.rollback()
         return jsonify({'erro': f'Erro ao registrar aposta: {e}'}), 500
     finally:
         cursor.close()
@@ -172,25 +200,15 @@ def registrar_aposta_roleta():
 
     cursor = conn.cursor()
     try:
-        
-        cursor.execute( # Insere o registro da aposta na tabela 'roleta'
-            "INSERT INTO roleta (login_usuario, gastorol, ganhorol) VALUES (?, ?, ?)",
-            (login_usuario, gasto, ganho)
-        )
-
-        saldo_final_aposta = ganho - gasto # Calcula o saldo final da aposta
-        cursor.execute( # Atualiza o saldo do usuário na tabela 'usuario'
-            "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?",
-            (gasto, ganho, saldo_final_aposta, login_usuario)
-        ) 
-        conn.commit() # Confirma as alterações no banco de dados
-
-        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,)) # Pega o saldo mais recente
+        cursor.execute( "INSERT INTO roleta (login_usuario, gastorol, ganhorol) VALUES (?, ?, ?)", (login_usuario, gasto, ganho) )
+        saldo_final_aposta = ganho - gasto
+        cursor.execute( "UPDATE usuario SET gasto = gasto + ?, ganho = ganho + ?, saldoatual = saldoatual + ? WHERE nome_usuario = ?", (gasto, ganho, saldo_final_aposta, login_usuario) ) 
+        conn.commit()
+        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,))
         novo_saldo = cursor.fetchone()[0] 
-
         return jsonify({'sucesso': True, 'novo_saldo': novo_saldo}), 200
     except mariadb.Error as e:
-        conn.rollback() # Desfaz as operações se der erro
+        conn.rollback()
         return jsonify({'erro': f'Erro ao registrar aposta: {e}'}), 500
     finally:
         cursor.close()
@@ -200,29 +218,34 @@ def registrar_aposta_roleta():
 @app.route('/usuario/adicionar_saldo', methods=['POST']) # Rota para adicionar saldo ao usuário
 def adicionar_saldo():
     dados = request.get_json()
-    login_usuario = dados.get('login_usuario')
+    id_usuario = dados.get('id_usuario') # Recebe o id_usuario em vez do nome
     valor = dados.get('valor')
 
-    if not login_usuario or not isinstance(valor, (int, float)) or valor <= 0:
+    if not id_usuario or not isinstance(valor, (int, float)) or valor <= 0:
         return jsonify({'erro': 'Dados inválidos fornecidos.'}), 400
 
     conn = get_db_connection()
     if conn is None:
         return jsonify({'erro': 'Falha na conexão com o banco de dados'}), 500
 
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True) # Usar dicionário para pegar o nome do usuário
     try:
-        cursor.execute( # Adiciona o valor ao saldo atual do usuário
-            "UPDATE usuario SET saldoatual = saldoatual + ? WHERE nome_usuario = ?",
-            (valor, login_usuario)
-        )
+        # Insere no log de depósitos 
+        cursor.execute("INSERT INTO log_depositos (id_usuario, valor_adicionado) VALUES (?, ?)", (id_usuario, valor))
+
+        # Atualiza o saldo (usando o ID para mais segurança)
+        cursor.execute( "UPDATE usuario SET saldoatual = saldoatual + ? WHERE id = ?", (valor, id_usuario) )
+        
         if cursor.rowcount == 0: # Verifica se algum usuário foi de fato atualizado
+            conn.rollback() # Desfaz o insert no log se o usuário não for encontrado
             return jsonify({'erro': 'Usuário não encontrado.'}), 404
             
         conn.commit()
 
-        cursor.execute("SELECT saldoatual FROM usuario WHERE nome_usuario = ?", (login_usuario,)) # Pega o saldo mais recente para retornar ao frontend
-        novo_saldo = cursor.fetchone()[0]
+        # Pega o saldo mais recente para retornar ao frontend
+        cursor.execute("SELECT saldoatual FROM usuario WHERE id = ?", (id_usuario,))
+        resultado = cursor.fetchone()
+        novo_saldo = resultado['saldoatual']
 
         return jsonify({'sucesso': True, 'novo_saldo': novo_saldo}), 200
 
@@ -235,5 +258,4 @@ def adicionar_saldo():
 
 
 if __name__ == "__main__":
-    app.run(debug=True) # Executa o servidor Flask em modo de depuração
-# O modo de depuração permite ver erros diretamente no navegador e recarrega o servidor automaticamente ao fazer alterações no código.
+    app.run(debug=True) # O modo de depuração permite ver erros diretamente no navegador e recarrega o servidor automaticamente ao fazer alterações no código.
