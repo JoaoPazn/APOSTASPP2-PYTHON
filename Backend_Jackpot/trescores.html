@@ -33,7 +33,7 @@
     >
       <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
         <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">
-          Acesso ao Jogo de Cores
+          Login
         </h2>
         <div id="loginForm">
           <div class="mb-4">
@@ -175,7 +175,7 @@
 
     <script>
       const API_URL = "http://127.0.0.1:5000"; // URL do servidor Flask
-      let currentUser = null;
+      let currentUser = null; // Guarda os dados do usuário logado (nome, saldo, id_usuario, id_sessao)
       let isSpinning = false;
 
       // Elementos DOM
@@ -225,6 +225,7 @@
           });
           const data = await response.json();
           if (response.ok) {
+            // Armazena todos os dados do usuário
             currentUser = data;
             showGameScreen();
           } else {
@@ -255,12 +256,25 @@
         }
       }
 
-      function logout() {
-        currentUser = null;
-        authModal.style.display = "flex";
-        gameContainer.classList.add("hidden");
-        document.getElementById("loginUsername").value = "";
-        document.getElementById("loginPassword").value = "";
+      // Função de logout agora se comunica com o backend
+      async function logout() {
+        if (!currentUser) return;
+
+        try {
+          await fetch(`${API_URL}/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_sessao: currentUser.id_sessao }),
+          });
+        } catch (error) {
+          console.error("Erro ao finalizar sessão no servidor:", error);
+        } finally {
+          currentUser = null;
+          authModal.style.display = "flex";
+          gameContainer.classList.add("hidden");
+          document.getElementById("loginUsername").value = "";
+          document.getElementById("loginPassword").value = "";
+        }
       }
 
       // Função para adicionar fundos via backend
@@ -280,7 +294,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              login_usuario: currentUser.nome_usuario,
+              id_usuario: currentUser.id_usuario,
               valor: valor,
             }),
           });
@@ -300,10 +314,8 @@
       // Lógica da aposta com integração
       betButton.addEventListener("click", async () => {
         if (isSpinning) return;
-
         const betAmount = parseFloat(betInput.value);
         const multiplier = parseFloat(multiplierInput.value);
-
         if (isNaN(betAmount) || betAmount <= 0)
           return (resultDisplay.textContent = "Valor da aposta inválido!");
         if (betAmount > currentUser.saldo)
@@ -311,18 +323,13 @@
         if (isNaN(multiplier) || multiplier <= 1)
           return (resultDisplay.textContent =
             "Multiplicador deve ser maior que 1!");
-
         isSpinning = true;
         betButton.disabled = true;
         resultDisplay.textContent = "Apostando...";
-
-        // Simulação do jogo (continua no frontend)
         const userNumber = Math.floor(Math.random() * 16);
         const drawnNumber = Math.floor(Math.random() * 16);
-
         let gasto = betAmount;
         let ganho = 0;
-
         if (userNumber === drawnNumber) {
           ganho = multiplier * betAmount;
           resultDisplay.innerHTML = `<span class="text-green-400">Parabéns! Você ganhou R$ ${ganho.toFixed(
@@ -331,8 +338,6 @@
         } else {
           resultDisplay.innerHTML = `<span class="text-red-400">Você perdeu!</span>`;
         }
-
-        // Envia o resultado para o backend
         try {
           const response = await fetch(`${API_URL}/aposta/roleta`, {
             method: "POST",
@@ -395,6 +400,7 @@
       });
 
       addMoneyButton.addEventListener("click", adicionarDinheiro);
+      // O clique no botão de logout agora chama a nova função async
       logoutBtn.addEventListener("click", logout);
 
       window.addEventListener("DOMContentLoaded", () => {
