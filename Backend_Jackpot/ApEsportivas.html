@@ -142,8 +142,9 @@
     <script>
       // Configurações da API para conectar ao backend Flask
       const API_URL = "http://127.0.0.1:5000";
-      let currentUser = null; // Guarda os dados do usuário logado
+      let currentUser = null; // Guarda os dados do usuário logado (nome, saldo, id_usuario, id_sessao)
 
+      // Lógica do Jogo
       const times = [
         "Flamengo",
         "Palmeiras",
@@ -183,7 +184,7 @@
       function mostrarMensagem(msg, isError = true) {
         const el = document.getElementById("authMessage");
         el.textContent = msg;
-        el.style.color = isError ? "#f87171" : "#4ade80"; // Vermelho para erro, verde para sucesso
+        el.style.color = isError ? "#f87171" : "#4ade80";
         setTimeout(() => (el.textContent = ""), 4000);
       }
 
@@ -197,7 +198,6 @@
       async function registrarApostaBackend(gasto, ganho) {
         try {
           const response = await fetch(`${API_URL}/aposta/esporte`, {
-            // Envia a aposta para o servidor
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -206,9 +206,9 @@
               ganho: ganho,
             }),
           });
-          const data = await response.json(); // Recebe a resposta do servidor
+          const data = await response.json();
           if (response.ok) {
-            currentUser.saldo = data.novo_saldo; // Atualiza o saldo com a resposta do servidor
+            currentUser.saldo = data.novo_saldo;
             atualizarUI();
           } else {
             mostrarResultado(
@@ -217,7 +217,6 @@
             );
           }
         } catch (error) {
-          // Trata erros de conexão com o servidor
           mostrarResultado(
             `Erro de conexão com o servidor: ${error.message}`,
             "#f87171"
@@ -232,31 +231,26 @@
             "Você precisa estar logado para apostar.",
             "#facc15"
           );
-
         let valor = parseFloat(prompt("Quanto deseja apostar?"));
         if (isNaN(valor) || valor <= 0)
           return mostrarResultado("Valor da aposta inválido.", "#facc15");
         if (valor > currentUser.saldo)
           return mostrarResultado("Saldo insuficiente.", "#facc15");
-
         let escolha =
           parseInt(prompt(times.map((t, i) => `${i + 1}. ${t}`).join("\n"))) -
           1;
         if (isNaN(escolha) || escolha < 0 || escolha >= times.length)
           return mostrarResultado("Escolha de time inválida.", "#facc15");
         let timeEscolhido = times[escolha];
-
         let adversario;
         do {
           adversario = times[Math.floor(Math.random() * times.length)];
         } while (adversario === timeEscolhido);
-
         let tipo = parseInt(
           prompt("1. Vitória (2x)\n2. Derrota (0.5x)\n3. Placar Exato (10x)")
         );
         if (![1, 2, 3].includes(tipo))
           return mostrarResultado("Tipo de aposta inválido.", "#facc15");
-
         let placarAposta = null;
         if (tipo === 3) {
           placarAposta = prompt("Digite o placar (ex: 2-1)")
@@ -265,18 +259,15 @@
           if (placarAposta.length !== 2 || placarAposta.some(isNaN))
             return mostrarResultado("Placar inválido.", "#facc15");
         }
-
         let [golsCasa, golsVisitante] = gerarPlacar();
         let msg = `${timeEscolhido} ${golsCasa} x ${golsVisitante} ${adversario}\n`;
-
         let gasto = valor;
         let ganho = 0;
-        let corResultado = "#f87171"; // Vermelho (perdeu) por padrão
-
+        let corResultado = "#f87171";
         if (tipo === 1 && golsCasa > golsVisitante) {
           ganho = valor * VITORIA_MULT;
           msg += `Vitória! Você recebeu R$ ${ganho.toFixed(2)}`;
-          corResultado = "#4ade80"; // Verde (ganhou)
+          corResultado = "#4ade80";
         } else if (tipo === 2 && golsCasa < golsVisitante) {
           ganho = valor * DERROTA_MULT;
           msg += `Derrota! Você recebeu R$ ${ganho.toFixed(2)}`;
@@ -294,9 +285,8 @@
         } else {
           msg += "Perdeu a aposta.";
         }
-
         mostrarResultado(msg, corResultado);
-        registrarApostaBackend(gasto, ganho); // Envia o resultado para o servidor
+        registrarApostaBackend(gasto, ganho);
       }
 
       // Função para adicionar fundos via backend
@@ -313,17 +303,16 @@
 
         try {
           const response = await fetch(`${API_URL}/usuario/adicionar_saldo`, {
-            // Envia a solicitação para adicionar saldo
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              login_usuario: currentUser.nome_usuario,
+              // Envia o ID do usuário em vez do nome
+              id_usuario: currentUser.id_usuario,
               valor: valor,
             }),
           });
           const data = await response.json();
           if (response.ok) {
-            // Se a resposta for bem-sucedida, atualiza o saldo do usuário
             currentUser.saldo = data.novo_saldo;
             atualizarUI();
             alert(`R$ ${valor.toFixed(2)} adicionados com sucesso!`);
@@ -345,6 +334,7 @@
           });
           const data = await response.json();
           if (response.ok) {
+            // Armazena todos os dados do usuário
             currentUser = data;
             document.getElementById("authModal").style.display = "none";
             document.getElementById("gameContainer").classList.remove("hidden");
@@ -358,11 +348,10 @@
       }
 
       async function register(username, password) {
-        // Função para registrar um novo usuário
         try {
           const response = await fetch(`${API_URL}/registrar`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" }, // Envia os dados como JSON
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nome_usuario: username, senha: password }),
           });
           const data = await response.json();
@@ -375,6 +364,30 @@
           }
         } catch (error) {
           mostrarMensagem("Erro de conexão com o servidor.");
+        }
+      }
+
+      // Função de logout se comunica com o backend
+      async function logout() {
+        if (!currentUser) return; // Se não há usuário, não faz nada
+
+        try {
+          // Envia o ID da sessão para o backend finalizar
+          await fetch(`${API_URL}/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_sessao: currentUser.id_sessao }),
+          });
+        } catch (error) {
+          console.error("Erro ao finalizar sessão no servidor:", error);
+        } finally {
+          // Limpa os dados locais e reseta a UI independentemente do sucesso da chamada
+          currentUser = null;
+          document.getElementById("authModal").style.display = "flex";
+          document.getElementById("gameContainer").classList.add("hidden");
+          document.getElementById("output").textContent = "";
+          document.getElementById("loginUsername").value = "";
+          document.getElementById("loginPassword").value = "";
         }
       }
 
@@ -406,15 +419,8 @@
         document.getElementById("loginForm").classList.remove("hidden");
       };
 
-      document.getElementById("logoutBtn").onclick = () => {
-        currentUser = null;
-        document.getElementById("authModal").style.display = "flex";
-        document.getElementById("gameContainer").classList.add("hidden");
-        document.getElementById("output").textContent = "";
-        document.getElementById("loginUsername").value = "";
-        document.getElementById("loginPassword").value = "";
-      };
-
+      // O clique no botão de logout agora chama a nova função async
+      document.getElementById("logoutBtn").onclick = logout;
       document.getElementById("addMoneyBtn").onclick = adicionarDinheiro;
       document.getElementById("betBtn").onclick = fazerAposta;
 
